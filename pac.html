@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pac-Man Clone</title>
+  <style>
+    body { background: black; color: white; text-align: center; margin: 0; font-family: sans-serif; }
+    canvas { display: block; margin: 20px auto; border: 2px solid white; }
+    button {
+      font-size: 16px; padding: 8px 20px;
+      margin-bottom: 20px; background: #333; color: white;
+      border: 1px solid white; cursor: pointer;
+    }
+    button:hover { background: #555; }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<button onclick="startGame()">Play Again</button>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const blockSize = 34;
+
+const stages = [
+[
+  "####################",
+  "#........##........#",
+  "#.####.#.##.#.####.#",
+  "#o####.#.##.#.####o#",
+  "#.####.#.##.#.####.#",
+  "#..................#",
+  "#.####.######.####.#",
+  "#......#....#......#",
+  "######.#.##.#.######",
+  "     #.# GG #.#     ",
+  "######.#.##.#.######",
+  "#........P.........#",
+  "####################"
+]
+];
+
+let map = [];
+let player, ghosts, powerMode = 0;
+let ghostSpeed = 300;
+let ghostTimer;
+let mainLoop;
+
+function startGame() {
+  clearInterval(ghostTimer);
+  clearInterval(mainLoop);
+  const stage = stages[Math.floor(Math.random() * stages.length)];
+  map = stage.map(row => row);
+
+  canvas.width = map[0].length * blockSize;
+  canvas.height = map.length * blockSize;
+
+  player = { x: 9, y: 11, dx: 0, dy: 0, score: 0 };
+  ghosts = [
+    { x: 9, y: 9, dx: 0, dy: -1, color: "red" },
+    { x: 10, y: 9, dx: 0, dy: 1, color: "pink" }
+  ];
+  powerMode = 0;
+
+  ghostTimer = setInterval(() => {
+    moveGhosts();
+    draw();
+  }, ghostSpeed);
+
+  mainLoop = setInterval(gameLoop, 150);
+}
+startGame();
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  map.forEach((row, y) => {
+    [...row].forEach((cell, x) => {
+      const px = x * blockSize, py = y * blockSize;
+      if (cell === '#') {
+        ctx.fillStyle = 'blue';
+        ctx.fillRect(px, py, blockSize, blockSize);
+      } else if (cell === '.' || cell === 'o') {
+        ctx.fillStyle = cell === '.' ? 'white' : 'orange';
+        ctx.beginPath();
+        ctx.arc(px + blockSize / 2, py + blockSize / 2, cell === '.' ? 5 : 8, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    });
+  });
+
+  // player
+  ctx.fillStyle = powerMode ? "cyan" : "yellow";
+  ctx.beginPath();
+  ctx.arc(player.x * blockSize + blockSize / 2, player.y * blockSize + blockSize / 2, 14, 0, 2 * Math.PI);
+  ctx.fill();
+
+  // ghosts
+  ghosts.forEach(g => {
+    ctx.fillStyle = powerMode ? "lightgray" : g.color;
+    ctx.beginPath();
+    ctx.arc(g.x * blockSize + blockSize / 2, g.y * blockSize + blockSize / 2, 14, 0, 2 * Math.PI);
+    ctx.fill();
+  });
+
+  ctx.fillStyle = "white";
+  ctx.fillText(`Score: ${player.score}`, 20, canvas.height - 10);
+
+  // 勝利判定
+  const remaining = map.flat().some(row => row.includes('.') || row.includes('o'));
+  if (!remaining) {
+    alert("You Win!");
+    clearInterval(ghostTimer);
+    clearInterval(mainLoop);
+  }
+}
+
+function movePlayer() {
+  const nx = player.x + player.dx;
+  const ny = player.y + player.dy;
+  if (map[ny][nx] !== '#') {
+    player.x = nx;
+    player.y = ny;
+    const cell = map[ny][nx];
+    if (cell === '.' || cell === 'o') {
+      map[ny] = map[ny].substr(0, nx) + ' ' + map[ny].substr(nx + 1);
+      player.score += (cell === '.') ? 10 : 50;
+      if (cell === 'o') powerMode = 300;
+    }
+  }
+}
+
+function moveGhosts() {
+  ghosts.forEach(g => {
+    const nx = g.x + g.dx;
+    const ny = g.y + g.dy;
+    if (map[ny][nx] !== '#') {
+      g.x = nx; g.y = ny;
+    } else {
+      const dirs = [
+        { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
+        { dx: -1, dy: 0 }, { dx: 1, dy: 0 }
+      ];
+      const valid = dirs.filter(d => map[g.y + d.dy][g.x + d.dx] !== '#');
+      if (valid.length > 0) {
+        const next = valid[Math.floor(Math.random() * valid.length)];
+        g.dx = next.dx; g.dy = next.dy;
+      }
+    }
+
+    // ゲームオーバー判定
+    if (g.x === player.x && g.y === player.y) {
+      alert("Game Over");
+      clearInterval(ghostTimer);
+      clearInterval(mainLoop);
+    }
+  });
+}
+
+function gameLoop() {
+  movePlayer();
+  draw();
+  if (powerMode) powerMode--;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === "ArrowUp")    { player.dx = 0; player.dy = -1; }
+  if (e.key === "ArrowDown")  { player.dx = 0; player.dy = 1; }
+  if (e.key === "ArrowLeft")  { player.dx = -1; player.dy = 0; }
+  if (e.key === "ArrowRight") { player.dx = 1; player.dy = 0; }
+});
+</script>
+</body>
+</html>
